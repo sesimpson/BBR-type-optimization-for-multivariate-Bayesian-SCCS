@@ -1,0 +1,41 @@
+COND_ID	DRUG_ID	BETA_HAT	SE_BETA_HAT
+22274	Error in solve.default(info) : 
+22274	  Lapack routine dgesv: system is exactly singular
+22274	Calls: solve -> solve -> solve.default -> .Call
+22274	Execution halted
+22281	Error in solve.default(info) : 
+22281	  Lapack routine dgesv: system is exactly singular
+22281	Calls: solve -> solve -> solve.default -> .Call
+22281	Execution halted
+22340	Error in solve.default(info) : 
+22340	  Lapack routine dgesv: system is exactly singular
+22340	Calls: solve -> solve -> solve.default -> .Call
+22340	Execution halted
+22350	Error in solve.default(info) : 
+22350	  Lapack routine dgesv: system is exactly singular
+22350	Calls: solve -> solve -> solve.default -> .Call
+22350	Execution halted
+22426	Error in solve.default(info) : 
+22426	  Lapack routine dgesv: system is exactly singular
+22426	Calls: solve -> solve -> solve.default -> .Call
+22426	Execution halted
+22492	Error in solve.default(info) : 
+22492	  Lapack routine dgesv: system is exactly singular
+22492	Calls: solve -> solve -> solve.default -> .Call
+22492	Execution halted
+22557	Error in solve.default(info) : 
+22557	  Lapack routine dgesv: system is exactly singular
+22557	Calls: solve -> solve -> solve.default -> .Call
+22557	Execution halted
+22839	Error in solve.default(info) : 
+22839	  Lapack routine dgesv: system is exactly singular
+22839	Calls: solve -> solve -> solve.default -> .Call
+22839	Execution halted
+22856	Error in solve.default(info) : 
+22856	  Lapack routine dgesv: system is exactly singular
+22856	Calls: solve -> solve -> solve.default -> .Call
+22856	Execution halted
+23034	Error in solve.default(info) : 
+23034	  Lapack routine dgesv: system is exactly singular
+23034	Calls: solve -> solve -> solve.default -> .Call
+23034	Execution halted
