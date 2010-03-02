@@ -16,12 +16,14 @@ options(scipen=30)
 	
 		X_par = X %*% par	
 		exp_X_par = exp(X_par)
-		offs_exp_X_par = offs * exp_X_par
+		offs_exp_X_par = Matrix(offs * exp_X_par)
 	
-		denom_pid = apply(PIDlist, 1, function(pid) { 
-			sum(offs_exp_X_par[dat$PID == pid]) })
+		denom_pid = t(pid_mat) %*% offs_exp_X_par
+
+		#denom_pid = apply(PIDlist, 1, function(pid) { 
+		#	sum(offs_exp_X_par[dat$PID == pid]) })
 	
-		loglik = as.numeric( (eta %*% X_par) - (n_pid %*% log(denom_pid)) )
+		loglik = as.numeric( (t(y) %*% X_par) - (t(n_pid) %*% log(denom_pid)) )
 
 		return( loglik )
 	}
@@ -38,24 +40,23 @@ options(scipen=30)
 	
 		X_par = X %*% par	
 		exp_X_par = exp(X_par)
-		offs_exp_X_par = offs * exp_X_par
+		offs_exp_X_par = Matrix(offs * exp_X_par)
 
-		# number of events for each person
-		n_pid = as.matrix(apply(PIDlist, 1, function(pid) { sum(eta[dat$PID == pid]) }))
-	
 		# denominator term for "pi" vector
-		denom_pid = as.matrix(apply(PIDlist, 1, function(pid) { sum(offs_exp_X_par[dat$PID == pid]) }))
-
-		scale_pid = apply(as.matrix(dat$PID), 1, 
-			function(pid) {
-				index = which(PIDlist == pid);
-				return( n_pid[index] / denom_pid[index] )
-			} )
+		denom_pid = t(pid_mat) %*% offs_exp_X_par
+			
+		scale_pid = pid_mat %*% (n_pid/denom_pid)
+			
+#		scale_pid = apply(as.matrix(dat$PID), 1, 
+#			function(pid) {
+#				index = which(PIDlist == pid);
+#				return( n_pid[index] / denom_pid[index] )
+#			} )
 
 		# holds the (n_i * pi_ik) terms
 		scale_pi_pid = scale_pid * offs_exp_X_par
 	
-		gradient = as.numeric(t(eta - scale_pi_pid) %*% X)
+		gradient = as.numeric(t(y - scale_pi_pid) %*% X)
 	
 		return(gradient)
 	}
@@ -65,38 +66,47 @@ options(scipen=30)
 	# representing a matrix of dimension (total numpds x num drugs)
 	fisherinfo <- function(par, X) {
 		p = dim(X)[2]
-		eta = as.matrix(dat$EVT)
-		offs = dat$OFFS
 	
 		X_par = X %*% par	
 		exp_X_par = exp(X_par)
 		offs_exp_X_par = offs * exp_X_par
 
-		# number of events for each person
-		n_pid = as.matrix(apply(PIDlist, 1, function(pid) { sum(eta[dat$PID == pid]) }))
-	
 		# denominator term for "pi" vector
-		denom_pid = as.matrix(apply(PIDlist, 1, function(pid) { sum(offs_exp_X_par[dat$PID == pid]) }))
-	
-		# for first term
-		x_offs_exp_X_par = as.matrix(apply(PIDlist, 1, function(pid) {
-				indices = which(dat$PID == pid)
-				return(
-					as.numeric(t(offs_exp_X_par[indices]) %*% X[indices,])
-				)
-			}))
+		denom_pid = t(pid_mat) %*% offs_exp_X_par
+					
+		x_offs_exp_X_par = X.sM * as.numeric(offs_exp_X_par)
 
-		# scale by denominator
-		x_offs_exp_X_par = t(x_offs_exp_X_par) / as.numeric(denom_pid) 
-		x_offs_exp_X_par_outer = t(apply(x_offs_exp_X_par, 1, function(x) { x %o% x }))
-
+		numer_pid = t(pid_mat) %*% x_offs_exp_X_par
+				
+		quot_pid = numer_pid / as.numeric(denom_pid)
+		
+		term1 = t(apply(quot_pid, 1, function(x) { x %o% x }))
+				
 		X_outer = t(apply(X, 1, function(x) { x %o% x }))
-	
-		term2 = t(apply(PIDlist, 1, function(pid) { 
-			t(offs_exp_X_par[dat$PID == pid]) %*% X_outer[dat$PID == pid,]
-		})) / as.numeric(denom_pid)
+		
+		term2 = t(apply(pid_mat, 2, function(pid) { 
+			t(offs_exp_X_par[pid]) %*% X_outer[pid,]
+		})) / as.numeric(denom_pid)		
+#		# for first term
+#		x_offs_exp_X_par = as.matrix(apply(pid_mat, 2, function(pid) {
+#				return(
+#					as.numeric(t(offs_exp_X_par[pid]) %*% X[pid,])
+#				)
+#			}))
 
-		total = matrix(t(n_pid) %*% (x_offs_exp_X_par_outer - term2), nrow=p, ncol=p)
+#		# scale by denominator
+#		x_offs_exp_X_par = t(x_offs_exp_X_par) / as.numeric(denom_pid) 
+#		x_offs_exp_X_par_outer = t(apply(x_offs_exp_X_par, 1, function(x) { x %o% x }))
+
+#		X_outer = t(apply(X, 1, function(x) { x %o% x }))
+	
+#		term2 = t(apply(pid_mat, 2, function(pid) { 
+#			t(offs_exp_X_par[pid]) %*% X_outer[pid,]
+#		})) / as.numeric(denom_pid)
+
+#		total = matrix(t(n_pid) %*% (x_offs_exp_X_par_outer - term2), nrow=p, ncol=p)
+
+		total = Matrix(as.numeric(t(n_pid) %*% (term1 - term2)), nrow=p, ncol=p)
 
 		return(-total)
 	}
@@ -157,6 +167,7 @@ options(scipen=30)
 # RUN -------------------------------------------------------------------------
 	# read in data
 	datafile = "/Users/ses/Desktop/sccs_multivar_package/ge_bbrtest/cond_373474_ge_bbrtest_Rin.txt"
+	datafile = "/Users/ses/Desktop/sccs_multivar_package/sm_ge_format_multivar_OUT_53drugs.txt"
 
 	# data in format of flat tab-delimited text file, header: 
 	#	PID	EVT	OFFS	D1	D2	D3	... etc.
@@ -201,26 +212,25 @@ options(scipen=30)
 	y = Matrix(dat$EVT)
 	offs = dat$OFFS
 		
-	# number of events for each person
-	#n_pid = apply(PIDlist, 1, function(pid) { sum(eta[dat$PID == pid]) })
-
+		
 	# blockwise matrix to keep track of PIDs
 	pid_mat = sparseMatrix(i=1:nrows, j=pmatch(dat$PID, PIDlist, duplicates.ok=TRUE), 
 				dims=c(nrows, length(PIDlist)))
 				
 	pid_mat = as(pid_mat, "dgCMatrix")
 				
+	# number of events for each person
 	n_pid = t(pid_mat) %*% y
 				
 
 # loop to do BBR-type procedure ---------------------------------------------------
 
 	# set prior parameters
-		sigma2_beta = 1000
+		sigma2_beta = 100
 		lambda = sqrt(2/20)
 	
 	# other initializations
-		type = "laplace"
+		type = "normal"
 		done = FALSE
 		beta = numeric(ndrugs)
 		delta = rep(2, ndrugs)
@@ -235,13 +245,13 @@ system.time(
 			beta_old = beta
 		
 			for (j in 1:ndrugs) {
+
 #			for (j in sample(1:ndrugs)) {
 			#j = sample(1:ndrugs, 1)
 			
 				# newton-raphson step for coordinate j
 				x_j = Matrix(X.sM[,j])
 				
-				offs_e_Xbeta = offs_e_Xbeta * exp(del_beta*x_j)
 				x_offs_e_Xbeta = x_j * offs_e_Xbeta
 
 				numer_j = t(pid_mat) %*% x_offs_e_Xbeta
@@ -261,7 +271,7 @@ system.time(
 					del_beta = -as.numeric(grad_j / hess_j)
 					
 				} else {	 # LAPLACIAN	
-					
+
 					if (beta[j] == 0) {
 						neg_update = -as.numeric((grad_j - lambda)/hess_j)
 						pos_update = -as.numeric((grad_j + lambda)/hess_j)
@@ -285,14 +295,31 @@ system.time(
 							ifelse(del_beta > delta[j], delta[j], del_beta))
 			
 				delta[j] = max(2*abs(del_beta), 0.5*delta[j])
-			
 				beta[j] = beta[j] + del_beta
+
 				
-				if (j %% 100 == 0) { cat(beta,"\n\n") }
+				# update vector offs * exp( X * beta)
+				del_beta_xj = del_beta * x_j
+				X_beta = X_beta + del_beta_xj
+				offs_e_Xbeta = offs_e_Xbeta * exp(del_beta_xj)
 			}
 
+			# update log posterior
+			loglik = (t(y) %*% (log(offs) + X_beta)) - (t(n_pid) %*% denom_j)
+				
+			if (type=="normal") {
+				logpost = loglik - 0.5*ndrugs*log(2*pi*sigma2_beta) - 0.5*(t(beta) %*% beta)/sigma2_beta
+					
+			} else {
+				logpost = loglik + ndrugs*log(0.5*lambda) - lambda*sum(abs(beta))
+			}
+				
+			logpost = as.numeric(logpost)
+			
 			#iter = iter + 1
 
+			cat(beta, "\n")
+			cat("logpost: ", logpost, "\n\n")
 			
 			#if (iter %% ndrugs == 0) {
 				
@@ -305,8 +332,8 @@ system.time(
 #				}
 		
 				# calculate and check convergence criteria
-					conv = t(abs(X.sM %*% (beta - beta_old))) %*% y
-					conv = conv / (1 + (t(abs(X.sM %*% beta_old)) %*% y) )
+					conv = as.numeric(t(abs(X.sM %*% (beta - beta_old))) %*% y)
+					conv = conv / as.numeric(1 + (t(abs(X.sM %*% beta_old)) %*% y) )
 		
 					if (as.numeric(conv	) <= 0.00001) { done = TRUE }			#}
 		}
@@ -318,6 +345,10 @@ system.time(
 		cat(druglist[i], "\t", beta[i], "\n", sep="")
 	}
 
-	
+
+# ML procedures
+	library(maxLik)
+	ML = maxLik(logLik=function(par) { l(par, X.sM) }, grad=function(par) { grad(par, X.sM) },
+		hess = function(par) { -fisherinfo(par, X.sM) }, start=numeric(ndrugs))
 	
 
